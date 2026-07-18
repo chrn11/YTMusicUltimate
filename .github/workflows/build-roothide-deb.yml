@@ -16,77 +16,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: brew install make ldid
-
-      - name: Set PATH / THEOS
+      - name: Check Theos cache key
         run: |
-          echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
-          echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
+          echo upstream_heads=`git ls-remote https://github.com/roothide/theos | head -n 1 | cut -f 1`-`git ls-remote https://github.com/theos/sdks | head -n 1 | cut -f 1` >> $GITHUB_ENV
 
       - name: Cache Theos
-        id: theos
+        id: cache
         uses: actions/cache@v4
         with:
-          path: theos/
-          key: theos_cache_344ee59_sdk165
+          path: ${{ github.workspace }}/theos
+          key: ${{ runner.os }}-${{ env.upstream_heads }}
 
-      - name: Setup Theos
-        if: steps.theos.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: theos/theos
-          ref: 344ee5925df036dbd1312b783ad5a00d153c2445
-          path: theos
-          submodules: recursive
+      - name: Prepare Theos (roothide)
+        uses: huami1314/theos-action@main
 
-      - name: Download iOS SDK
-        if: steps.theos.outputs.cache-hit != 'true'
+      - name: Setup GNU Make
         run: |
-          git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/theos/sdks.git
-          cd sdks
-          git sparse-checkout set --no-cone iPhoneOS16.5.sdk
-          git checkout
-          mv *.sdk $THEOS/sdks
-
-      - name: Setup roothide scheme
-        run: |
-          set -e
-          mkdir -p "$THEOS/vendor"
-          if [ ! -d "$THEOS/vendor/roothide" ]; then
-            git clone --depth=1 https://github.com/roothide/theos-roothide.git "$THEOS/vendor/roothide" || true
-          fi
-          # Fallback: ensure scheme file exists for THEOS_PACKAGE_SCHEME=roothide
-          if [ ! -f "$THEOS/makefiles/package/roothide.mk" ] && [ -d "$THEOS/vendor/roothide" ]; then
-            ls -la "$THEOS/vendor/roothide" || true
-          fi
+          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> $GITHUB_PATH
+          echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
 
       - name: Build ROOTHIDE package
         run: |
           set -e
-          cd "${{ github.workspace }}"
-          make clean package ROOTHIDE=1 FINALPACKAGE=1
-          ls -la packages || ls -la .theos/packages || true
-          find . -name '*.deb' -print
+          make clean
+          make package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1 -j$(sysctl -n hw.ncpu)
+          ls -la packages
+          find packages -name '*.deb' -print
 
       - name: Upload Deb Artifact
         uses: actions/upload-artifact@v4
         with:
           name: YTMusicUltimate-roothide-deb
-          path: |
-            packages/*.deb
-            .theos/packages/*.deb
+          path: packages/*.deb
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/custom'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: custom-${{ github.run_number }}
           name: Custom ROOTHIDE ${{ github.run_number }}
-          files: |
-            packages/*.deb
-            .theos/packages/*.deb
+          files: packages/*.deb
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
