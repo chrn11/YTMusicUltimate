@@ -83,10 +83,10 @@ static void YTMUHideAVSwitchTree(UIView *view) {
     for (int i = 0; i < 5 && p; i++) {
         CGSize sz = p.bounds.size;
         NSString *cls = NSStringFromClass([p class]);
+        // 勿匹配 PlayerHeader：会把收起/更多整栏藏掉
         BOOL nameHit = [cls containsString:@"AudioVideo"] ||
                        [cls containsString:@"AVSwitch"] ||
-                       [cls containsString:@"ModeSwitch"] ||
-                       [cls containsString:@"PlayerHeader"];
+                       [cls containsString:@"ModeSwitch"];
         // 顶部紧凑分段控件容器（真机约 96x36）
         BOOL sizeHit = sz.height > 0 && sz.height <= 56 && sz.width > 40 && sz.width <= 220;
         if (nameHit || sizeHit) {
