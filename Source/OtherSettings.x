@@ -80,9 +80,13 @@ BOOL isTabSelected = NO;
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     if (!isTabSelected) {
-        NSArray *pivotIdentifiers = @[@"FEmusic_home", @"FEmusic_immersive", @"FEmusic_explore", @"FEmusic_library_landing", @"BHdownloadsVC"];
+        NSArray *pivotIdentifiers = @[@"FEmusic_home", @"FEmusic_immersive", @"FEmusic_explore", @"FEmusic_library_landing"];
         NSDictionary *YTMUltimateDict = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"YTMUltimate"];
-        [self selectItemWithPivotIdentifier:pivotIdentifiers[[YTMUltimateDict[@"startupPage"] integerValue]]];
+        NSInteger startupPage = [YTMUltimateDict[@"startupPage"] integerValue];
+        if (startupPage < 0 || startupPage >= (NSInteger)pivotIdentifiers.count) {
+            startupPage = 0;
+        }
+        [self selectItemWithPivotIdentifier:pivotIdentifiers[startupPage]];
         isTabSelected = YES;
     }
 }

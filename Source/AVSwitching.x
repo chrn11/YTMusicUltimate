@@ -50,6 +50,10 @@ static int YTMUint(NSString *key) {
 }
 
 - (void)setSwitchAvailability:(NSInteger)arg1 {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) {
+        %orig(0);
+        return;
+    }
     YTMU(@"YTMUltimateIsEnabled") ? %orig(1) : %orig;
 }
 %end
@@ -75,8 +79,17 @@ static int YTMUint(NSString *key) {
 %end
 
 %hook YTMAudioVideoModeControllerInternalImpl
-- (void)setSwitchAvailability:(NSInteger)arg1 { YTMU(@"YTMUltimateIsEnabled") ? %orig(1) : %orig; }
-- (NSInteger)switchAvailability { return YTMU(@"YTMUltimateIsEnabled") ? 1 : %orig; }
+- (void)setSwitchAvailability:(NSInteger)arg1 {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) {
+        %orig(0);
+        return;
+    }
+    YTMU(@"YTMUltimateIsEnabled") ? %orig(1) : %orig;
+}
+- (NSInteger)switchAvailability {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) return 0;
+    return YTMU(@"YTMUltimateIsEnabled") ? 1 : %orig;
+}
 - (BOOL)isAudioOnlyBlocked { return YTMU(@"YTMUltimateIsEnabled") ? NO : %orig; }
 %end
 
@@ -160,12 +173,14 @@ static int YTMUint(NSString *key) {
 
 %hook YTMMusicAppMetadata
 - (BOOL)isAudioOnlyButtonVisible {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) return NO;
     return YTMU(@"YTMUltimateIsEnabled") ?: %orig;
 }
 %end
 
 %hook YTMMusicAppMetadataImpl
 - (BOOL)isAudioOnlyButtonVisible {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) return NO;
     return YTMU(@"YTMUltimateIsEnabled") ?: %orig;
 }
 %end

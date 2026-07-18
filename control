@@ -1,8 +1,8 @@
 Package: com.ginsu.ytmusicultimate
 Name: YTMusicUltimate
-Version: 0.0.1
+Version: 2.5.0
 Architecture: iphoneos-arm
-Description: YouTube Music Premium
+Description: YouTube Music Premium (custom: no tweak download, cache auto-clean, UI hides)
 Maintainer: dayanch96 & ginsu
 Author: dayanch96 & ginsu
 Section: Tweaks

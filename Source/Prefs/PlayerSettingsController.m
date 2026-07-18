@@ -49,7 +49,7 @@
     return nil;
 }
 
--(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+-(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"cell"];
 
     if (cell == nil) {
@@ -62,13 +62,13 @@
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"boolsCell"];
         
         NSArray *settingsData = @[
-            @{@"title": LOC(@"DOWNLOAD_AUDIO"), @"desc": LOC(@"DOWNLOAD_AUDIO_DESC"), @"key": @"downloadAudio"},
-            @{@"title": LOC(@"DOWNLOAD_COVER"), @"desc": LOC(@"DOWNLOAD_COVER_DESC"), @"key": @"downloadCoverImage"},
             @{@"title": LOC(@"PLAYBACK_RATE_BUTTON"), @"desc": LOC(@"PLAYBACK_RATE_BUTTON_DESC"), @"key": @"playbackRateButton"},
             @{@"title": LOC(@"SELECTABLE_LYRICS"), @"desc": LOC(@"SELECTABLE_LYRICS_DESC"), @"key": @"selectableLyrics"},
             @{@"title": LOC(@"VOLBAR"), @"desc": LOC(@"VOLBAR_DESC"), @"key": @"volBar"},
             @{@"title": LOC(@"NO_AUTORADIO"), @"desc": LOC(@"NO_AUTORADIO_DESC"), @"key": @"disableAutoRadio"},
-            @{@"title": LOC(@"SKIP_CONTENT_WARNING"), @"desc": LOC(@"SKIP_CONTENT_WARNING_DESC"), @"key": @"skipWarning"}
+            @{@"title": LOC(@"SKIP_CONTENT_WARNING"), @"desc": LOC(@"SKIP_CONTENT_WARNING_DESC"), @"key": @"skipWarning"},
+            @{@"title": LOC(@"HIDE_AV_SWITCH"), @"desc": LOC(@"HIDE_AV_SWITCH_DESC"), @"key": @"hideAVSwitchButton"},
+            @{@"title": LOC(@"HIDE_PLAYER_CAST"), @"desc": LOC(@"HIDE_PLAYER_CAST_DESC"), @"key": @"hidePlayerCastButton"}
         ];
 
         NSDictionary *data = settingsData[indexPath.row];
@@ -141,7 +141,7 @@
             cell.textLabel.adjustsFontSizeToFitWidth = YES;
 
             UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 80, cell.contentView.frame.size.height)];
-            textField.text = [NSString stringWithFormat:@"%ld", [YTMUltimateDict[@"sbDuration"] integerValue]];
+            textField.text = [NSString stringWithFormat:@"%ld", (long)[YTMUltimateDict[@"sbDuration"] integerValue]];
             textField.font = [UIFont systemFontOfSize:13.0];
             textField.keyboardType = UIKeyboardTypeNumberPad;
             textField.textAlignment = NSTextAlignmentRight;
@@ -205,13 +205,13 @@
 
 - (void)toggleSwitch:(UISwitch *)sender {
     NSArray *settingsData = @[
-        @{@"key": @"downloadAudio"},
-        @{@"key": @"downloadCoverImage"},
         @{@"key": @"playbackRateButton"},
         @{@"key": @"selectableLyrics"},
         @{@"key": @"volBar"},
         @{@"key": @"disableAutoRadio"},
         @{@"key": @"skipWarning"},
+        @{@"key": @"hideAVSwitchButton"},
+        @{@"key": @"hidePlayerCastButton"},
     ];
 
     NSDictionary *data = settingsData[sender.tag];
@@ -275,7 +275,7 @@
 
     [defaults setObject:YTMUltimateDict forKey:@"YTMUltimate"];
 
-    textField.text = [NSString stringWithFormat:@"%ld", [YTMUltimateDict[@"sbDuration"] integerValue]];
+    textField.text = [NSString stringWithFormat:@"%ld", (long)[YTMUltimateDict[@"sbDuration"] integerValue]];
 }
 
 - (UIView *)KBToolbar:(UITextField *)textField {

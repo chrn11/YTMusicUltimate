@@ -26,15 +26,18 @@
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 2;
+    return 3;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    if (section == 1) {
-        return 6;
-    } else {
+    if (section == 0) {
         return 1;
-    } return 0;
+    } if (section == 1) {
+        return 5;
+    } if (section == 2) {
+        return 1;
+    }
+    return 0;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
@@ -42,9 +45,10 @@
         return LOC(@"STARTUP_TAB");
     } if (section == 1) {
         return LOC(@"TAB_SETTINGS");
-    } else {
-        return nil;
+    } if (section == 2) {
+        return LOC(@"HOME_FEED_SETTINGS");
     }
+    return nil;
 }
 
 -(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
@@ -59,7 +63,12 @@
     if (indexPath.section == 0 && indexPath.row == 0) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cell0"];
 
-        UISegmentedControl *startupPage = [[UISegmentedControl alloc] initWithItems:@[[self tbImageNamed:@"yt_outline_home_24pt"], [self tbImageNamed:@"youtube_outline/samples_24pt"], [self tbImageNamed:@"yt_outline_compass_24pt"], [self tbImageNamed:@"yt_outline_library_music_24pt"], [self tbImageNamed:@"icons/downloads"]]];
+        UISegmentedControl *startupPage = [[UISegmentedControl alloc] initWithItems:@[
+            [self tbImageNamed:@"yt_outline_home_24pt"],
+            [self tbImageNamed:@"youtube_outline/samples_24pt"],
+            [self tbImageNamed:@"yt_outline_compass_24pt"],
+            [self tbImageNamed:@"yt_outline_library_music_24pt"]
+        ]];
 
         for (UIView *segmentView in startupPage.subviews) {
             for (UIView *subview in segmentView.subviews) {
@@ -70,7 +79,9 @@
             }
         }
 
-        startupPage.selectedSegmentIndex = [YTMUltimateDict[@"startupPage"] integerValue];
+        NSInteger startup = [YTMUltimateDict[@"startupPage"] integerValue];
+        if (startup < 0 || startup > 3) startup = 0;
+        startupPage.selectedSegmentIndex = startup;
         [startupPage addTarget:self action:@selector(startupPageSelect:) forControlEvents:UIControlEventValueChanged];
         [cell.contentView addSubview:startupPage];
         startupPage.translatesAutoresizingMaskIntoConstraints = NO;
@@ -78,7 +89,9 @@
         [startupPage.centerXAnchor constraintEqualToAnchor:cell.contentView.centerXAnchor].active = YES;
         [startupPage.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor constant:5.0].active = YES;
         [startupPage.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor constant:-5.0].active = YES;
-    } if (indexPath.section == 1) {
+    }
+
+    if (indexPath.section == 1) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cell1"];
         
         NSArray *settingsData = @[
@@ -86,8 +99,7 @@
             @{@"title": LOC(@"HIDE_HOME"), @"key": @"hideHomeTab"},
             @{@"title": LOC(@"HIDE_SAMPLES"), @"key": @"hideSamplesTab"},
             @{@"title": LOC(@"HIDE_EXPLORE"), @"key": @"hideExploreTab"},
-            @{@"title": LOC(@"HIDE_LIBRARY"), @"key": @"hideLibraryTab"},
-            @{@"title": LOC(@"HIDE_DOWNLOADS"), @"key": @"hideDownloadsTab"}
+            @{@"title": LOC(@"HIDE_LIBRARY"), @"key": @"hideLibraryTab"}
         ];
 
         NSDictionary *data = settingsData[indexPath.row];
@@ -103,14 +115,26 @@
         cell.accessoryView = switchControl;
     }
 
+    if (indexPath.section == 2) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"homeFeedCell"];
+        cell.textLabel.text = LOC(@"HIDE_HOME_MUSIC_VIDEOS");
+        cell.textLabel.adjustsFontSizeToFitWidth = YES;
+        cell.detailTextLabel.text = LOC(@"HIDE_HOME_MUSIC_VIDEOS_DESC");
+        cell.detailTextLabel.numberOfLines = 0;
+        cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+
+        ABCSwitch *switchControl = [[NSClassFromString(@"ABCSwitch") alloc] init];
+        switchControl.onTintColor = [UIColor colorWithRed:30.0/255.0 green:150.0/255.0 blue:245.0/255.0 alpha:1.0];
+        [switchControl addTarget:self action:@selector(toggleHomeFeedSwitch:) forControlEvents:UIControlEventValueChanged];
+        switchControl.on = [YTMUltimateDict[@"hideHomeMusicVideos"] boolValue];
+        cell.accessoryView = switchControl;
+    }
+
     return cell;
 }
 
 - (UIImage *)tbImageNamed:(NSString *)imageName {
-    BOOL isDownloads = [imageName isEqualToString:@"icons/downloads"];
-
-    YTAssetLoader *al = [[NSClassFromString(@"YTAssetLoader") alloc] initWithBundle:isDownloads ? NSBundle.ytmu_defaultBundle : [NSBundle mainBundle]];
-
+    YTAssetLoader *al = [[NSClassFromString(@"YTAssetLoader") alloc] initWithBundle:[NSBundle mainBundle]];
     return [al imageNamed:imageName];
 }
 
@@ -133,7 +157,6 @@
         @{@"key": @"hideSamplesTab"},
         @{@"key": @"hideExploreTab"},
         @{@"key": @"hideLibraryTab"},
-        @{@"key": @"hideDownloadsTab"},
     ];
 
     NSDictionary *data = settingsData[sender.tag];
@@ -141,6 +164,14 @@
     NSMutableDictionary *YTMUltimateDict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
 
     [YTMUltimateDict setObject:@([sender isOn]) forKey:data[@"key"]];
+    [defaults setObject:YTMUltimateDict forKey:@"YTMUltimate"];
+}
+
+- (void)toggleHomeFeedSwitch:(UISwitch *)sender {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSMutableDictionary *YTMUltimateDict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
+
+    [YTMUltimateDict setObject:@([sender isOn]) forKey:@"hideHomeMusicVideos"];
     [defaults setObject:YTMUltimateDict forKey:@"YTMUltimate"];
 }
 

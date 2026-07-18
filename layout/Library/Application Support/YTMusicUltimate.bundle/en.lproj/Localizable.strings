@@ -54,8 +54,8 @@
 "DONT_STICK_HEADERS_DESC" = "Unsticks pinned at the top of the screen panels";
 "HIDE_HISTORY_BUTTON" = "Hide history button";
 "HIDE_HISTORY_BUTTON_DESC" = "Hides history button in the navigation bar";
-"HIDE_CAST_BUTTON" = "Hide cast button";
-"HIDE_CAST_BUTTON_DESC" = "Hides cast button in the navigation bar";
+"HIDE_CAST_BUTTON" = "Hide navbar cast button";
+"HIDE_CAST_BUTTON_DESC" = "Hides cast button in the navigation bar only";
 "HIDE_FILTER_BUTTON" = "Remove sort filter button";
 "HIDE_FILTER_BUTTON_DESC" = "Removes Library/Downloads filter button from the navigation bar";
 
@@ -76,6 +76,20 @@
 "HIDE_DOWNLOADS" = "Hide Downloads tab";
 
 "CLEAR_CACHE" = "Clear cache";
+"CACHE_SETTINGS" = "Cache";
+"CACHE_SETTINGS_FOOTER" = "When auto-clean is on and cache exceeds the limit, oldest files are removed until about 80% of the limit remains. Manual clear still deletes everything.";
+"AUTO_CLEAN_CACHE" = "Auto-clean cache";
+"AUTO_CLEAN_CACHE_DESC" = "Trim Caches when over the size limit";
+"CACHE_LIMIT_MB" = "Cache limit (MB)";
+"CACHE_LIMIT_MB_DESC" = "Enter a number in megabytes (default 2048)";
+
+"HIDE_AV_SWITCH" = "Hide audio/video switch";
+"HIDE_AV_SWITCH_DESC" = "Hides the song/video toggle on the player page only";
+"HIDE_PLAYER_CAST" = "Hide player cast button";
+"HIDE_PLAYER_CAST_DESC" = "Hides cast on the full player and mini player bar (separate from navbar cast)";
+"HOME_FEED_SETTINGS" = "Home feed";
+"HIDE_HOME_MUSIC_VIDEOS" = "Hide home music videos";
+"HIDE_HOME_MUSIC_VIDEOS_DESC" = "Removes Music videos shelves from Home only; video tracks remain playable";
 
 "APPLY" = "Apply";
 "APPLY_DESC" = "Closes the app to apply changes";

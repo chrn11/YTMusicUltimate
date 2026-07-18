@@ -16,6 +16,22 @@ static BOOL YTMU(NSString *key) {
 @interface YTMSortFilterButton : UIButton
 @end
 
+@interface UIView (YTMUNavPrivate)
+- (UIViewController *)_viewControllerForAncestor;
+@end
+
+static BOOL YTMUInNavigationBar(UIView *view) {
+    UIView *v = view;
+    while (v) {
+        if ([v isKindOfClass:NSClassFromString(@"YTMNavigationBarView")] ||
+            [v isKindOfClass:[UINavigationBar class]]) {
+            return YES;
+        }
+        v = v.superview;
+    }
+    return NO;
+}
+
 %hook QTMButton
 - (void)layoutSubviews {
     %orig;
@@ -24,9 +40,14 @@ static BOOL YTMU(NSString *key) {
             self.hidden = YES;
         }
     }
-    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideCastButton")) {
-        if ([self.accessibilityIdentifier isEqualToString:@"id.mdx.playbackroute.button"]) {
+    // 导航栏投屏：仅在导航栏上下文隐藏，与播放页/迷你条的 hidePlayerCastButton 分离
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideCastButton") && YTMUInNavigationBar(self)) {
+        if ([self.accessibilityIdentifier isEqualToString:@"id.mdx.playbackroute.button"] ||
+            [self.accessibilityIdentifier containsString:@"mdx"] ||
+            [self.accessibilityIdentifier containsString:@"playbackroute"]) {
             self.hidden = YES;
+            self.alpha = 0;
+            self.userInteractionEnabled = NO;
         }
     }
 }

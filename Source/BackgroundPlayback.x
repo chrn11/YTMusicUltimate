@@ -64,7 +64,7 @@ static BOOL YTMU(NSString *key) {
 
 %ctor {
     NSMutableDictionary *YTMUltimateDict = [NSMutableDictionary dictionaryWithDictionary:[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"YTMUltimate"]];
-    NSArray *keys = @[@"YTMUltimateIsEnabled", @"backgroundPlayback", @"noAds", @"downloadAudio", @"downloadCoverImage"];
+    NSArray *keys = @[@"YTMUltimateIsEnabled", @"backgroundPlayback", @"noAds"];
     for (NSString *key in keys) {
         if (!YTMUltimateDict[key]) {
             [YTMUltimateDict setObject:@(1) forKey:key];

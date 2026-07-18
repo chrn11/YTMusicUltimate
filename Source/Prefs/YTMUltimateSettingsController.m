@@ -1,4 +1,5 @@
 #import "YTMUltimateSettingsController.h"
+#import "../Utils/YTMUCacheManager.h"
 
 @implementation YTMUltimateSettingsController
 
@@ -31,13 +32,25 @@
         [self.tableView.heightAnchor constraintEqualToAnchor:self.view.heightAnchor]
     ]];
 
-    //Init isEnabled for first time
     NSMutableDictionary *YTMUltimateDict = [NSMutableDictionary dictionaryWithDictionary:[[NSUserDefaults standardUserDefaults] dictionaryForKey:@"YTMUltimate"]];
     if (!YTMUltimateDict[@"YTMUltimateIsEnabled"]) {
         [YTMUltimateDict setObject:@(1) forKey:@"YTMUltimateIsEnabled"];
-        [[NSUserDefaults standardUserDefaults] setObject:YTMUltimateDict forKey:@"YTMUltimate"];
     }
+    if (!YTMUltimateDict[@"cacheLimitMB"]) {
+        [YTMUltimateDict setObject:@(2048) forKey:@"cacheLimitMB"];
+    }
+    if (YTMUltimateDict[@"autoCleanCache"] == nil) {
+        [YTMUltimateDict setObject:@(0) forKey:@"autoCleanCache"];
+    }
+    [[NSUserDefaults standardUserDefaults] setObject:YTMUltimateDict forKey:@"YTMUltimate"];
+}
 
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [[YTMUCacheManager shared] autoTrimIfNeededWithCompletion:^(BOOL didTrim, unsigned long long newSize) {
+        (void)didTrim; (void)newSize;
+        [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:2] withRowAnimation:UITableViewRowAnimationNone];
+    }];
 }
 
 #pragma mark - Table view stuff
@@ -50,13 +63,19 @@
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
-    return section == 3 ? LOC(@"LINKS") : nil;
+    if (section == 2) return LOC(@"CACHE_SETTINGS");
+    if (section == 3) return LOC(@"LINKS");
+    return nil;
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section == 0) {
         return LOC(@"RESTART_FOOTER");
-    } if (section == 3) {
+    }
+    if (section == 2) {
+        return LOC(@"CACHE_SETTINGS_FOOTER");
+    }
+    if (section == 3) {
         NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
         NSString *appVersion = infoDictionary[@"CFBundleShortVersionString"];
         return [NSString stringWithFormat:@"\nYouTubeMusic: v%@\nYTMusicUltimate: v%@", appVersion, @(OS_STRINGIFY(TWEAK_VERSION))];
@@ -79,7 +98,7 @@
         case 1:
             return 5;
         case 2:
-            return 1;
+            return 3;
         case 3:
             return 4;
         default:
@@ -91,9 +110,7 @@
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"cell"];
     if (cell == nil) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cell"];
-    }
-
-    else {
+    } else {
         for (UIView *subview in cell.contentView.subviews) {
             [subview removeFromSuperview];
         }
@@ -141,22 +158,65 @@
     }
 
     if (indexPath.section == 2) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cacheSection"];
+        if (indexPath.row == 0) {
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"autoCacheCell"];
+            cell.textLabel.text = LOC(@"AUTO_CLEAN_CACHE");
+            cell.detailTextLabel.text = LOC(@"AUTO_CLEAN_CACHE_DESC");
+            cell.detailTextLabel.numberOfLines = 0;
+            cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+            cell.imageView.image = [UIImage systemImageNamed:@"arrow.triangle.2.circlepath"];
 
-        cell.textLabel.text = LOC(@"CLEAR_CACHE");
+            ABCSwitch *sw = [[NSClassFromString(@"ABCSwitch") alloc] init];
+            sw.onTintColor = [UIColor colorWithRed:30.0/255.0 green:150.0/255.0 blue:245.0/255.0 alpha:1.0];
+            [sw addTarget:self action:@selector(toggleAutoClean:) forControlEvents:UIControlEventValueChanged];
+            sw.on = [YTMUltimateDict[@"autoCleanCache"] boolValue];
+            cell.accessoryView = sw;
+            return cell;
+        }
 
-        UILabel *cache = [[UILabel alloc] init];
-        cache.text = [self getCacheSize];
-        cache.textColor = [UIColor secondaryLabelColor];
-        cache.font = [UIFont systemFontOfSize:16];
-        cache.textAlignment = NSTextAlignmentRight;
-        [cache sizeToFit];
+        if (indexPath.row == 1) {
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cacheLimitCell"];
+            cell.textLabel.text = LOC(@"CACHE_LIMIT_MB");
+            cell.detailTextLabel.text = LOC(@"CACHE_LIMIT_MB_DESC");
+            cell.detailTextLabel.numberOfLines = 0;
+            cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+            cell.imageView.image = [UIImage systemImageNamed:@"internaldrive"];
 
-        cell.accessoryView = cache;
-        cell.imageView.image = [UIImage systemImageNamed:@"trash"];
-        cell.imageView.tintColor = [UIColor redColor];
+            UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 90, 30)];
+            NSInteger limit = [YTMUltimateDict[@"cacheLimitMB"] integerValue];
+            if (limit <= 0) limit = 2048;
+            textField.text = [NSString stringWithFormat:@"%ld", (long)limit];
+            textField.font = [UIFont systemFontOfSize:15.0];
+            textField.keyboardType = UIKeyboardTypeNumberPad;
+            textField.textAlignment = NSTextAlignmentRight;
+            textField.delegate = self;
+            textField.tag = 9001;
+            cell.accessoryView = textField;
+            return cell;
+        }
 
-        return cell;
+        if (indexPath.row == 2) {
+            cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cacheClearCell"];
+            cell.textLabel.text = LOC(@"CLEAR_CACHE");
+            cell.imageView.image = [UIImage systemImageNamed:@"trash"];
+            cell.imageView.tintColor = [UIColor redColor];
+
+            UILabel *cache = [[UILabel alloc] init];
+            cache.text = @"…";
+            cache.textColor = [UIColor secondaryLabelColor];
+            cache.font = [UIFont systemFontOfSize:16];
+            cache.textAlignment = NSTextAlignmentRight;
+            [cache sizeToFit];
+            cell.accessoryView = cache;
+
+            __weak UILabel *weakLabel = cache;
+            [[YTMUCacheManager shared] calculateCacheSizeAsync:^(unsigned long long bytes, NSString *formatted) {
+                (void)bytes;
+                weakLabel.text = formatted;
+                [weakLabel sizeToFit];
+            }];
+            return cell;
+        }
     }
 
     if (indexPath.section == 3) {
@@ -187,26 +247,11 @@
     return cell;
 }
 
-- (NSString *)getCacheSize {
-    NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-    NSArray *filesArray = [[NSFileManager defaultManager] subpathsOfDirectoryAtPath:cachePath error:nil];
-
-    unsigned long long int folderSize = 0;
-    for (NSString *fileName in filesArray) {
-        NSString *filePath = [cachePath stringByAppendingPathComponent:fileName];
-        NSDictionary *fileAttributes = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil];
-        folderSize += [fileAttributes fileSize];
-    }
-
-    NSByteCountFormatter *formatter = [[NSByteCountFormatter alloc] init];
-    formatter.countStyle = NSByteCountFormatterCountStyleFile;
-
-    return [formatter stringFromByteCount:folderSize];
-}
-
 #pragma mark - UITableViewDelegate
 - (BOOL)tableView:(UITableView *)tableView shouldHighlightRowAtIndexPath:(NSIndexPath *)indexPath {
-    return indexPath.section == 0 ? NO : YES;
+    if (indexPath.section == 0) return NO;
+    if (indexPath.section == 2 && indexPath.row < 2) return NO;
+    return YES;
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -217,27 +262,22 @@
                                  [NavBarSettingsController class],
                                  [OtherSettingsController class]];
 
-        if (indexPath.row >= 0 && indexPath.row < controllers.count) {
+        if (indexPath.row >= 0 && indexPath.row < (NSInteger)controllers.count) {
             UIViewController *controller = [[controllers[indexPath.row] alloc] init];
             [self.navigationController pushViewController:controller animated:YES];
         }
     }
 
-    if (indexPath.section == 2 && indexPath.row == 0) {
+    if (indexPath.section == 2 && indexPath.row == 2) {
         UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
         activityIndicator.color = [UIColor labelColor];
         [activityIndicator startAnimating];
         UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
         cell.accessoryView = activityIndicator;
 
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-            [[NSFileManager defaultManager] removeItemAtPath:cachePath error:nil];
-
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:0 inSection:2]] withRowAnimation:UITableViewRowAnimationNone];
-            });
-        });
+        [[YTMUCacheManager shared] clearAllCacheWithCompletion:^{
+            [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:2 inSection:2]] withRowAnimation:UITableViewRowAnimationNone];
+        }];
     }
 
     if (indexPath.section == 3) {
@@ -246,7 +286,7 @@
                         @"https://discord.gg/VN9ZSeMhEW",
                         @"https://github.com/dayanch96/YTMusicUltimate"];
 
-        if (indexPath.row >= 0 && indexPath.row < urls.count) {
+        if (indexPath.row >= 0 && indexPath.row < (NSInteger)urls.count) {
             NSURL *url = [NSURL URLWithString:urls[indexPath.row]];
             if ([[UIApplication sharedApplication] canOpenURL:url]) {
                 [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
@@ -285,10 +325,35 @@
 
 - (void)toggleMasterSwitch:(UISwitch *)sender {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-    NSMutableDictionary *twitchDvnDict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
+    [dict setObject:@([sender isOn]) forKey:@"YTMUltimateIsEnabled"];
+    [defaults setObject:dict forKey:@"YTMUltimate"];
+}
 
-    [twitchDvnDict setObject:@([sender isOn]) forKey:@"YTMUltimateIsEnabled"];
-    [defaults setObject:twitchDvnDict forKey:@"YTMUltimate"];
+- (void)toggleAutoClean:(UISwitch *)sender {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
+    [dict setObject:@([sender isOn]) forKey:@"autoCleanCache"];
+    [defaults setObject:dict forKey:@"YTMUltimate"];
+    if ([sender isOn]) {
+        [[YTMUCacheManager shared] autoTrimIfNeededWithCompletion:^(BOOL didTrim, unsigned long long newSize) {
+            (void)didTrim; (void)newSize;
+            [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:2 inSection:2]] withRowAnimation:UITableViewRowAnimationNone];
+        }];
+    }
+}
+
+- (void)textFieldDidEndEditing:(UITextField *)textField {
+    if (textField.tag != 9001) return;
+
+    NSInteger value = [textField.text integerValue];
+    if (value <= 0) value = 2048;
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:[defaults dictionaryForKey:@"YTMUltimate"]];
+    [dict setObject:@(value) forKey:@"cacheLimitMB"];
+    [defaults setObject:dict forKey:@"YTMUltimate"];
+    textField.text = [NSString stringWithFormat:@"%ld", (long)value];
 }
 
 @end
