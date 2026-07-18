@@ -29,12 +29,36 @@ static BOOL YTMUIsNavBarContext(UIView *view) {
 }
 
 // 真机实测（zh-Hans）：投屏按钮 accessibilityLabel = 「投放」
+// 注意：不能用 contains「投屏」——设置项标题「隐藏播放页投屏按钮」会被误藏
 static BOOL YTMUIsCastLabel(NSString *label) {
     if (!label.length) return NO;
-    NSString *l = label;
-    if ([l isEqualToString:@"投放"] || [l isEqualToString:@"Cast"] || [l isEqualToString:@"投屏"]) return YES;
+    NSString *l = [label stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if ([l isEqualToString:@"投放"] || [l isEqualToString:@"投屏"] || [l isEqualToString:@"Cast"]) return YES;
+    // 英文系统常见完整文案；避免匹配设置页长句
     NSString *lower = l.lowercaseString;
-    if ([lower containsString:@"cast"] || [lower containsString:@"投放"] || [lower containsString:@"投屏"]) return YES;
+    if (l.length <= 24 && ([lower isEqualToString:@"cast"] || [lower hasPrefix:@"cast "] || [lower hasSuffix:@" cast"])) return YES;
+    return NO;
+}
+
+static BOOL YTMUIsInSettingsUI(UIView *view) {
+    UIView *v = view;
+    while (v) {
+        if ([v isKindOfClass:[UITableViewCell class]] || [v isKindOfClass:[UITableView class]]) return YES;
+        NSString *cls = NSStringFromClass([v class]);
+        if ([cls containsString:@"SettingsController"] || [cls containsString:@"YTMUltimate"]) return YES;
+        v = v.superview;
+    }
+    UIViewController *vc = nil;
+    if ([view respondsToSelector:@selector(_viewControllerForAncestor)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        vc = [view performSelector:@selector(_viewControllerForAncestor)];
+#pragma clang diagnostic pop
+    }
+    if (vc) {
+        NSString *cls = NSStringFromClass([vc class]);
+        if ([cls containsString:@"Settings"] || [cls containsString:@"YTMUltimate"]) return YES;
+    }
     return NO;
 }
 
@@ -99,6 +123,7 @@ static void YTMUHideAVSwitchTree(UIView *view) {
 
 static void YTMUApplyPlayerUIHides(UIView *view) {
     if (!view || !YTMEnabled()) return;
+    if (YTMUIsInSettingsUI(view)) return;
 
     if (YTMU(@"hideCastButton") && YTMUIsCastButton(view) && YTMUIsNavBarContext(view)) {
         YTMUHideView(view);
@@ -142,7 +167,7 @@ static void YTMUApplyPlayerUIHides(UIView *view) {
 %hook UIView
 - (void)setAccessibilityLabel:(NSString *)label {
     %orig;
-    if (!YTMEnabled()) return;
+    if (!YTMEnabled() || YTMUIsInSettingsUI(self)) return;
 
     if (YTMU(@"hideAVSwitchButton") && YTMUIsAVSwitchLabel(label)) {
         YTMUHideAVSwitchTree(self);
