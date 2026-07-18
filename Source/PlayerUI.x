@@ -32,39 +32,6 @@ static BOOL YTMUIsNavBarContext(UIView *view) {
            YTMUViewIsInClassNamed(view, @"UINavigationBar");
 }
 
-static BOOL YTMUIsPlayerOrMiniContext(UIView *view) {
-    if (YTMUIsNavBarContext(view)) return NO;
-
-    UIViewController *vc = nil;
-    if ([view respondsToSelector:@selector(_viewControllerForAncestor)]) {
-        vc = [view _viewControllerForAncestor];
-    }
-    NSString *vcName = NSStringFromClass([vc class]) ?: @"";
-    if ([vcName containsString:@"NowPlaying"] ||
-        [vcName containsString:@"Watch"] ||
-        [vcName containsString:@"Miniplayer"] ||
-        [vcName containsString:@"PlayerBar"] ||
-        [vcName containsString:@"Playback"] ||
-        [vcName containsString:@"Tab"] ||
-        [vcName containsString:@"Browse"] ||
-        [vcName containsString:@"Pivot"]) {
-        // Tab/Browse 也要允许迷你条
-    }
-
-    if (YTMUViewIsInClassNamed(view, @"YTMNowPlayingView") ||
-        YTMUViewIsInClassNamed(view, @"YTMPlayerControlsView") ||
-        YTMUViewIsInClassNamed(view, @"YTMMiniplayerView") ||
-        YTMUViewIsInClassNamed(view, @"YTMPlayerBarView") ||
-        YTMUViewIsInClassNamed(view, @"YTMWatchView") ||
-        YTMUViewIsInClassNamed(view, @"YTMContentView") ||
-        YTMUViewIsInClassNamed(view, @"YTMAppView")) {
-        return YES;
-    }
-
-    // 迷你条「投放」常在底部；用无障碍文案匹配时不再强依赖父类
-    return YES;
-}
-
 // 真机实测（zh-Hans）：投屏按钮 accessibilityLabel = 「投放」
 static BOOL YTMUIsCastLabel(NSString *label) {
     if (!label.length) return NO;
