@@ -7,6 +7,10 @@ static BOOL YTMU(NSString *key) {
     return [YTMUltimateDict[key] boolValue];
 }
 
+static BOOL YTMUHomeMVEnabled(void) {
+    return YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideHomeMusicVideos");
+}
+
 static NSString *YTMUExtractTitle(id object) {
     if (!object) return nil;
 
@@ -46,15 +50,31 @@ static NSString *YTMUExtractTitle(id object) {
 static NSString *YTMUSectionTitle(id section) {
     if (!section) return nil;
 
-    NSArray *headerKeys = @[@"header", @"headerRenderer", @"musicResponsiveHeaderRenderer", @"musicShelfHeaderRenderer", @"musicCarouselShelfBasicHeaderRenderer"];
+    NSArray *headerKeys = @[
+        @"header",
+        @"headerRenderer",
+        @"musicResponsiveHeaderRenderer",
+        @"musicShelfHeaderRenderer",
+        @"musicCarouselShelfBasicHeaderRenderer",
+        @"musicImmersiveCarouselShelfBasicHeaderRenderer"
+    ];
     for (NSString *key in headerKeys) {
         @try {
             id header = [section valueForKey:key];
             if (!header) continue;
 
-            for (NSString *tKey in @[@"title", @"strapline"]) {
+            for (NSString *tKey in @[@"title", @"strapline", @"accessibilityText"]) {
                 @try {
                     NSString *title = YTMUExtractTitle([header valueForKey:tKey]);
+                    if (title.length) return title;
+                } @catch (__unused NSException *e) {}
+            }
+
+            // header 再包一层 basicHeader
+            for (NSString *nested in @[@"musicCarouselShelfBasicHeaderRenderer", @"musicResponsiveHeaderRenderer"]) {
+                @try {
+                    id inner = [header valueForKey:nested];
+                    NSString *title = YTMUExtractTitle([inner valueForKey:@"title"]);
                     if (title.length) return title;
                 } @catch (__unused NSException *e) {}
             }
@@ -101,7 +121,14 @@ static NSArray *YTMUFilterSections(NSArray *sections) {
         id actual = section;
         @try {
             if ([section respondsToSelector:@selector(valueForKey:)]) {
-                for (NSString *k in @[@"itemSectionRenderer", @"musicShelfRenderer", @"musicCarouselShelfRenderer", @"musicPlaylistShelfRenderer", @"gridRenderer"]) {
+                for (NSString *k in @[
+                    @"itemSectionRenderer",
+                    @"musicShelfRenderer",
+                    @"musicCarouselShelfRenderer",
+                    @"musicImmersiveCarouselShelfRenderer",
+                    @"musicPlaylistShelfRenderer",
+                    @"gridRenderer"
+                ]) {
                     id nested = nil;
                     @try { nested = [section valueForKey:k]; } @catch (__unused NSException *e) {}
                     if (nested) { actual = nested; break; }
@@ -117,15 +144,55 @@ static NSArray *YTMUFilterSections(NSArray *sections) {
     return filtered;
 }
 
+static void YTMUHideView(UIView *view) {
+    if (!view) return;
+    view.hidden = YES;
+    view.alpha = 0;
+    view.userInteractionEnabled = NO;
+}
+
+// 真机：标题行 + 横向视频卡整体约 height≈317
+static void YTMUHideMusicVideoShelfFromTitleView(UIView *titleView) {
+    if (!titleView) return;
+
+    UIView *best = nil;
+    UIView *v = titleView;
+    while (v.superview) {
+        v = v.superview;
+        CGSize sz = v.bounds.size;
+        NSString *cls = NSStringFromClass([v class]);
+        if ([cls containsString:@"Shelf"] ||
+            [cls containsString:@"Carousel"] ||
+            [cls containsString:@"ItemSection"] ||
+            [cls containsString:@"Section"]) {
+            best = v;
+            break;
+        }
+        // 全宽、高度覆盖标题+卡片的容器
+        if (sz.width >= UIScreen.mainScreen.bounds.size.width - 24 && sz.height >= 180 && sz.height <= 520) {
+            best = v;
+        }
+    }
+
+    if (best) {
+        YTMUHideView(best);
+        return;
+    }
+
+    // 弱兜底：藏标题所在行及其父级
+    YTMUHideView(titleView);
+    if (titleView.superview) YTMUHideView(titleView.superview);
+}
+
 %hook YTISectionListRenderer
 - (id)contentsArray {
     id orig = %orig;
-    if (!(YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideHomeMusicVideos"))) return orig;
+    if (!YTMUHomeMVEnabled()) return orig;
     if (![orig isKindOfClass:[NSArray class]]) return orig;
     return YTMUFilterSections(orig);
 }
 - (void)setContentsArray:(id)contents {
-    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideHomeMusicVideos") && [contents isKindOfClass:[NSArray class]]) {
+    if (YTMUHomeMVEnabled() && [contents isKindOfClass:[NSArray class]]) {
         %orig(YTMUFilterSections(contents));
         return;
     }
@@ -136,28 +203,40 @@ static NSArray *YTMUFilterSections(NSArray *sections) {
 %hook YTISectionListSupportedRenderers
 - (id)itemSectionRenderer {
     id orig = %orig;
-    if (!(YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideHomeMusicVideos"))) return orig;
+    if (!YTMUHomeMVEnabled()) return orig;
     if (YTMUSectionLooksLikeMusicVideoShelf(orig)) return nil;
     return orig;
 }
 %end
 
-// UI 层兜底：若 feed 已渲染，按货架标题隐藏 section header 及其后续行（弱兜底，主要依赖上面 protobuf 过滤）
 %hook UILabel
 - (void)setText:(NSString *)text {
     %orig;
-    if (!(YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideHomeMusicVideos"))) return;
+    if (!YTMUHomeMVEnabled()) return;
     if (!YTMUIsMusicVideoShelfTitle(text)) return;
+    YTMUHideMusicVideoShelfFromTitleView(self);
+}
+- (void)setAttributedText:(NSAttributedString *)attr {
+    %orig;
+    if (!YTMUHomeMVEnabled()) return;
+    if (!YTMUIsMusicVideoShelfTitle(attr.string)) return;
+    YTMUHideMusicVideoShelfFromTitleView(self);
+}
+%end
 
-    UIView *v = self;
-    while (v.superview) {
-        v = v.superview;
-        NSString *cls = NSStringFromClass([v class]);
-        if ([cls containsString:@"Shelf"] || [cls containsString:@"Section"] || [cls containsString:@"Carousel"] || [cls containsString:@"ItemSection"]) {
-            v.hidden = YES;
-            v.alpha = 0;
-            break;
-        }
+%hook UIView
+- (void)setAccessibilityLabel:(NSString *)label {
+    %orig;
+    if (!YTMUHomeMVEnabled()) return;
+    if (!YTMUIsMusicVideoShelfTitle(label)) return;
+    YTMUHideMusicVideoShelfFromTitleView(self);
+}
+
+- (void)didMoveToWindow {
+    %orig;
+    if (!YTMUHomeMVEnabled() || !self.window) return;
+    if (YTMUIsMusicVideoShelfTitle(self.accessibilityLabel)) {
+        YTMUHideMusicVideoShelfFromTitleView(self);
     }
 }
 %end

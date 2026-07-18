@@ -163,10 +163,16 @@ static int YTMUint(NSString *key) {
 
 %hook YTQueueItem
 - (BOOL)supportsAudioVideoSwitching {
+    // 仅隐藏按钮时仍允许能力存在；不因 Ultimate 开启而强行暴露切换 UI
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) return %orig;
     return YTMU(@"YTMUltimateIsEnabled") ?: %orig;
 }
 
 - (void)setSupportsAudioVideoSwitching:(BOOL)arg1 {
+    if (YTMU(@"YTMUltimateIsEnabled") && YTMU(@"hideAVSwitchButton")) {
+        %orig(arg1);
+        return;
+    }
     YTMU(@"YTMUltimateIsEnabled") ? %orig(YES) : %orig;
 }
 %end
