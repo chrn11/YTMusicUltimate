@@ -112,23 +112,28 @@ static void YTMUHideView(UIView *view) {
     view.userInteractionEnabled = NO;
 }
 
+@interface QTMButton : UIButton
+@end
+
 %hook QTMButton
 - (void)layoutSubviews {
     %orig;
     if (!YTMEnabled()) return;
 
-    if (YTMU(@"hideCastButton") && YTMUIsCastButton(self) && YTMUIsNavBarContext(self)) {
-        YTMUHideView(self);
+    UIView *view = (UIView *)self;
+
+    if (YTMU(@"hideCastButton") && YTMUIsCastButton(view) && YTMUIsNavBarContext(view)) {
+        YTMUHideView(view);
         return;
     }
 
-    if (YTMU(@"hidePlayerCastButton") && YTMUIsCastButton(self) && !YTMUIsNavBarContext(self)) {
-        YTMUHideView(self);
+    if (YTMU(@"hidePlayerCastButton") && YTMUIsCastButton(view) && !YTMUIsNavBarContext(view)) {
+        YTMUHideView(view);
         return;
     }
 
-    if (YTMU(@"hideAVSwitchButton") && YTMUIsAVSwitchControl(self)) {
-        YTMUHideView(self);
+    if (YTMU(@"hideAVSwitchButton") && YTMUIsAVSwitchControl(view)) {
+        YTMUHideView(view);
     }
 }
 %end
